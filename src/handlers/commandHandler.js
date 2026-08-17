@@ -2,19 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
 const config = require('../config');
+const { getPermissionLevel, hasPermission } = require('../utils/permissions');
+const { commandBox, styledLine } = require('../utils/format');
 
-// Command registry
 const commands = new Map();
 const aliases = new Map();
-
-// Cooldown cache (simple in-memory)
 const cooldowns = new Map();
 
-/**
- * Loads all command files from src/commands subdirectories.
- * Each command file must export an object with:
- * { name, aliases, category, description, usage, permissions, cooldown, execute }
- */
 function loadCommands() {
   const commandsDir = path.resolve(config.rootDir, 'src', 'commands');
   const categories = fs.readdirSync(commandsDir, { withFileTypes: true })
@@ -56,9 +50,6 @@ function loadCommands() {
   logger.info(`Commands loaded: ${commands.size}`);
 }
 
-/**
- * Parses a message and executes the matching command if any.
- */
 async function handleCommand(sock, normalizedMessage) {
   const { text } = normalizedMessage;
 
@@ -70,19 +61,30 @@ async function handleCommand(sock, normalizedMessage) {
   const [commandName, ...args] = body.split(/\s+/);
   const lowerName = commandName.toLowerCase();
 
-  // Resolve alias
   let targetName = lowerName;
   if (aliases.has(lowerName)) {
     targetName = aliases.get(lowerName);
   }
 
   if (!commands.has(targetName)) {
-    // Unknown command - currently ignore
-    return;
+    return; // Unknown command
   }
 
   const command = commands.get(targetName);
   const userId = normalizedMessage.sender;
+
+  // Permission check
+  const permission = getPermissionLevel({ normalized: normalizedMessage });
+  if (!hasPermission(permission.level, command.permissions)) {
+    const denial = commandBox('ACCESS DENIED', [
+      styledLine('Command', command.name),
+      styledLine('Required', command.permissions.join(', ')),
+      styledLine('Your Level', permission.level)
+    ].join('\n'));
+    await sock.sendMessage(normalizedMessage.remoteJid, { text: denial });
+    logger.warn(`Denied ${command.name} for ${userId} (level: ${permission.level})`);
+    return;
+  }
 
   // Cooldown check
   const cooldownKey = `${userId}:${command.name}`;
@@ -98,16 +100,13 @@ async function handleCommand(sock, normalizedMessage) {
     }
   }
 
-  // Set cooldown
   cooldowns.set(cooldownKey, now + command.cooldown * 1000);
-  // Clean up old cooldown entries periodically
   if (cooldowns.size > 500) {
     for (const [key, expiry] of cooldowns) {
       if (expiry < now) cooldowns.delete(key);
     }
   }
 
-  // Build context
   const ctx = {
     sock,
     msg: normalizedMessage.raw,
@@ -115,10 +114,10 @@ async function handleCommand(sock, normalizedMessage) {
     args,
     prefix: config.botPrefix,
     config,
-    command
+    command,
+    permission
   };
 
-  // Execute command
   try {
     await command.execute(ctx);
     logger.debug(`Executed command: ${command.name} by ${userId}`);
