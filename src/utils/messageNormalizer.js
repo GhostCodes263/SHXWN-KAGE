@@ -15,7 +15,7 @@ function normalizeMessage(msg, sock) {
     remoteJidAlt,
     participant,
     participantAlt,
-    addressingMode
+    fromMe
   } = key;
 
   // Determine chat JID (remoteJid)
@@ -28,13 +28,17 @@ function normalizeMessage(msg, sock) {
 
   // Determine sender JID
   let rawSender;
-  if (participant && participant !== '') {
+  if (fromMe) {
+    // Message sent by the bot itself => sender is the bot
+    rawSender = sock.user?.id || config.ownerNumber + '@s.whatsapp.net';
+  } else if (participant && participant !== '') {
     rawSender = participant;
   } else if (participantAlt) {
     rawSender = participantAlt;
   } else {
     rawSender = rawRemoteJid || remoteJid || '';
   }
+
   let sender = resolveJid(rawSender);
 
   // Fallback if remoteJid is undefined
@@ -89,6 +93,7 @@ function normalizeMessage(msg, sock) {
     remoteJid,
     sender,
     isGroup,
+    fromMe: fromMe === true,
     pushName,
     text,
     mediaType,
