@@ -1,11 +1,16 @@
 const logger = require('../utils/logger');
 const { normalizeMessage } = require('../utils/messageNormalizer');
+const { handleCommand, loadCommands } = require('./commandHandler');
 
-/**
- * Handles incoming WhatsApp messages.
- * For now, only logs normalized messages. Command handling will come later.
- */
+// Load commands once on startup
+let commandsLoaded = false;
+
 async function handleMessage(sock, msg) {
+  if (!commandsLoaded) {
+    loadCommands();
+    commandsLoaded = true;
+  }
+
   const context = normalizeMessage(msg, sock);
 
   logger.info(
@@ -20,7 +25,8 @@ async function handleMessage(sock, msg) {
     'Incoming message'
   );
 
-  // Placeholder for future command handler
+  // Command handling
+  await handleCommand(sock, context);
 }
 
 module.exports = { handleMessage };

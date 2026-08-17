@@ -1,12 +1,24 @@
+const { resolveLidToJid } = require('./lidResolver');
+
 /**
  * Normalizes a raw Baileys message into a clean context object.
- * Handles text, media, quoted messages, mentions, etc.
  */
 function normalizeMessage(msg, sock) {
-  const { key, message, pushName, messageTimestamp, remoteJid } = msg;
+  const { key, message, pushName, messageTimestamp, remoteJid: rawRemoteJid } = msg;
+
+  // Resolve possible LID JIDs
+  const rawSender = key.participant || key.remoteJid;
+
+  let sender = resolveLidToJid(rawSender);
+
+  // For private messages, remoteJid is usually the same as sender.
+  // If remoteJid is undefined, fall back to sender.
+  let remoteJid = resolveLidToJid(rawRemoteJid);
+  if (!remoteJid) {
+    remoteJid = sender;
+  }
 
   const isGroup = remoteJid?.endsWith('@g.us');
-  const sender = key.participant || key.remoteJid;
   const messageId = key.id;
 
   let text = '';
@@ -16,7 +28,6 @@ function normalizeMessage(msg, sock) {
     else if (message.imageMessage?.caption) text = message.imageMessage.caption;
     else if (message.videoMessage?.caption) text = message.videoMessage.caption;
     else if (message.ephemeralMessage) {
-      // Handle ephemeral (view-once) messages
       const inner = message.ephemeralMessage.message;
       if (inner.conversation) text = inner.conversation;
       else if (inner.extendedTextMessage?.text) text = inner.extendedTextMessage.text;
@@ -25,7 +36,6 @@ function normalizeMessage(msg, sock) {
     }
   }
 
-  // Determine media type if any
   let mediaType = null;
   let mediaMessage = null;
   if (message) {
@@ -45,7 +55,6 @@ function normalizeMessage(msg, sock) {
   }
 
   const quotedMessage = message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
-
   const mentionedJids = message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
 
   return {
