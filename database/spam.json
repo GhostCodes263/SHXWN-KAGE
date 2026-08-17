@@ -1,0 +1,11 @@
+{
+  "120363428059187236@g.us": {
+    "enabled": true,
+    "action": "delete",
+    "maxMessages": 5,
+    "windowSeconds": 10,
+    "maxDuplicates": 3,
+    "floodThreshold": 5,
+    "floodWindow": 10
+  }
+}

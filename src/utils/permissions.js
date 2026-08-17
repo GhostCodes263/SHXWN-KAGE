@@ -1,5 +1,6 @@
 const config = require('../config');
 const { resolveLidToJid } = require('./lidResolver');
+const { getOwners } = require('./ownerStore');
 
 const PERMISSIONS = {
   OWNER: 7,
@@ -13,27 +14,47 @@ const PERMISSIONS = {
 };
 
 /**
+ * Determine if a sender number is the bot's own number.
+ */
+function isBotItself(senderNumber, sock) {
+  if (!senderNumber || !sock || !sock.user) return false;
+  const botJid = sock.user.id;
+  if (!botJid) return false;
+  const botNumber = botJid.replace(/@.*$/, '').replace(/[^0-9]/g, '');
+  return senderNumber === botNumber;
+}
+
+/**
+ * Determine if a sender number is an owner.
+ */
+function isOwnerNumber(senderNumber, sock) {
+  if (!senderNumber) return false;
+  // Main owner from config
+  if (senderNumber === config.ownerNumber) return true;
+  // Bot's own number
+  if (isBotItself(senderNumber, sock)) return true;
+  // Additional owners from file
+  const additionalOwners = getOwners();
+  return additionalOwners.includes(senderNumber);
+}
+
+/**
  * Determines permission level for a message sender.
- * @param {Object} ctx - Contains sock and normalized message.
  */
 async function getPermissionLevel(ctx) {
   const sender = ctx.normalized.sender;
-  const ownerNumber = config.ownerNumber;
   const sock = ctx.sock;
 
-  // Normalize sender to digits only
   const senderNumber = sender
     ? sender.replace(/@.*$/, '').replace(/[^0-9]/g, '')
     : '';
 
-  // Owner check
-  if (senderNumber && senderNumber === ownerNumber) {
+  if (isOwnerNumber(senderNumber, sock)) {
     return { level: 'OWNER', priority: PERMISSIONS.OWNER, isOwner: true, isAdmin: true };
   }
 
   let isAdmin = false;
 
-  // Group admin check
   if (ctx.normalized.isGroup) {
     try {
       const groupJid = ctx.normalized.remoteJid;
@@ -41,11 +62,9 @@ async function getPermissionLevel(ctx) {
       const participants = metadata.participants || [];
 
       for (const p of participants) {
-        // Candidate IDs for comparison
         const candidateJids = [
           p.id,
           p.participantAlt,
-          // resolve LID to JID if p.id is LID
           resolveLidToJid(p.id)
         ].filter(Boolean);
 
@@ -57,7 +76,6 @@ async function getPermissionLevel(ctx) {
         }
       }
     } catch (err) {
-      // Log error but continue
       console.error('Failed to get group metadata for permission check:', err.message);
     }
   }

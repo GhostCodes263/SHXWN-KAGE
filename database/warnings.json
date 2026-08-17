@@ -1,0 +1,54 @@
+{
+  "120363428059187236@g.us:203813931753538@lid": {
+    "groupJid": "120363428059187236@g.us",
+    "userJid": "203813931753538@lid",
+    "warnings": [
+      {
+        "reason": "testing",
+        "warnedBy": "263717961373@s.whatsapp.net",
+        "timestamp": 1786966315007
+      }
+    ]
+  },
+  "120363428059187236@g.us:263717961373@s.whatsapp.net": {
+    "groupJid": "120363428059187236@g.us",
+    "userJid": "263717961373@s.whatsapp.net",
+    "warnings": [
+      {
+        "reason": "Used bad word: dick",
+        "warnedBy": "SYSTEM",
+        "timestamp": 1786967058149
+      },
+      {
+        "reason": "Sent a link: https://chat.whatsapp.com/Lj9xI5vDpAhAEXmYN0QysJ?s=cl&p=a&ilr=4",
+        "warnedBy": "ANTI-LINK",
+        "timestamp": 1786968108097
+      },
+      {
+        "reason": "Sent a link: https://chat.whatsapp.com/Lj9xI5vDpAhAEXmYN0QysJ?s=cl&p=a&ilr=4",
+        "warnedBy": "ANTI-LINK",
+        "timestamp": 1786968186708
+      },
+      {
+        "reason": "Sent a link: https://chat.whatsapp.com/Lj9xI5vDpAhAEXmYN0QysJ?s=cl&p=a&ilr=4",
+        "warnedBy": "ANTI-LINK",
+        "timestamp": 1786968306282
+      },
+      {
+        "reason": "Sent a link: https://chat.whatsapp.com/Lj9xI5vDpAhAEXmYN0QysJ?s=cl&p=a&ilr=4",
+        "warnedBy": "ANTI-LINK",
+        "timestamp": 1786968430135
+      },
+      {
+        "reason": "Duplicate message 3 times",
+        "warnedBy": "ANTI-SPAM",
+        "timestamp": 1786968611598
+      },
+      {
+        "reason": "Duplicate message 3 times",
+        "warnedBy": "ANTI-SPAM",
+        "timestamp": 1786968621532
+      }
+    ]
+  }
+}
