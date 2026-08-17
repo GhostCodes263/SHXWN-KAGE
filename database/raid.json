@@ -1,0 +1,10 @@
+{
+  "120363428059187236@g.us": {
+    "enabled": true,
+    "threshold": 2,
+    "action": "lockdown",
+    "locked": false,
+    "joinCount": 0,
+    "lastJoinTime": 0
+  }
+}

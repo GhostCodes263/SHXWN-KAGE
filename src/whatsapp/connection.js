@@ -12,6 +12,7 @@ const {
 
 const logger = require('../utils/logger');
 const { handleMessage } = require('../handlers/messageHandler');
+const { handleGroupParticipantsUpdate } = require('../handlers/groupEventHandler');
 
 const baileysLogger = pino({ level: 'warn' });
 
@@ -86,6 +87,15 @@ async function startWhatsApp(config) {
       } catch (err) {
         logger.error(err, 'Error handling message');
       }
+    }
+  });
+
+  // Listen for group participant updates (join/leave)
+  sock.ev.on('group-participants.update', async (update) => {
+    try {
+      await handleGroupParticipantsUpdate(sock, update);
+    } catch (err) {
+      logger.error(err, 'Error handling group participant update');
     }
   });
 
