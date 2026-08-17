@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const qrcode = require('qrcode-terminal');
+const pino = require('pino');
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -8,15 +9,12 @@ const {
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore
 } = require('@whiskeysockets/baileys');
-const pino = require('pino');
 
-// Set up a basic logger for Baileys — set to warn to reduce noise but allow important logs
-const logger = pino({ level: 'warn' });
+const logger = require('../utils/logger');
 
-/**
- * Starts the WhatsApp connection and returns the socket.
- * This function will attempt to reconnect on unexpected disconnection.
- */
+// Baileys internal logger — keep it quiet
+const baileysLogger = pino({ level: 'warn' });
+
 async function startWhatsApp(config) {
   const sessionDir = path.resolve(config.rootDir, config.sessionPath);
   if (!fs.existsSync(sessionDir)) {
@@ -26,16 +24,16 @@ async function startWhatsApp(config) {
   const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
   const { version, isLatest } = await fetchLatestBaileysVersion();
 
-  console.log(`[✓] WhatsApp version: ${version} ${isLatest ? '(latest)' : ''}`);
+  logger.info(`WhatsApp version: ${version} ${isLatest ? '(latest)' : ''}`);
 
   const sock = makeWASocket({
     version,
     auth: {
       creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, logger)
+      keys: makeCacheableSignalKeyStore(state.keys, baileysLogger)
     },
-    logger,
-    printQRInTerminal: false, // We handle QR manually
+    logger: baileysLogger,
+    printQRInTerminal: false,
     browser: ['SHXWN-KAGE', 'Chrome', '1.0.0'],
     markOnlineOnConnect: true,
     syncFullHistory: false
@@ -50,36 +48,30 @@ async function startWhatsApp(config) {
       console.log('\n╔══════════════════════════════════╗');
       console.log('║        SCAN THIS QR CODE         ║');
       console.log('╚══════════════════════════════════╝\n');
-      // Print QR code using qrcode-terminal (small mode for terminal readability)
       qrcode.generate(qr, { small: true });
       console.log('\n[~] Scan with WhatsApp → Linked Devices → Link a Device');
     }
 
     if (connection === 'connecting') {
-      console.log('[~] Connecting to WhatsApp...');
+      logger.info('Connecting to WhatsApp...');
     } else if (connection === 'open') {
-      console.log('╔══════════════════════════════════╗');
-      console.log('║        SHXWN-KAGE CORE           ║');
-      console.log('╠══════════════════════════════════╣');
-      console.log('║ WhatsApp     : CONNECTED         ║');
-      console.log('╚══════════════════════════════════╝');
-      console.log('\n[✓] WhatsApp connection established.');
-      console.log(`[✓] Logged in as: ${sock.user?.name || sock.user?.id}`);
+      logger.info('WhatsApp connection established');
+      logger.info(`Logged in as: ${sock.user?.name || sock.user?.id}`);
     } else if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-      console.warn(`[!] WhatsApp connection closed (status: ${statusCode}).`);
+      logger.warn(`WhatsApp connection closed (status: ${statusCode}).`);
 
       if (shouldReconnect) {
-        console.log('[~] Reconnecting in 5 seconds...');
+        logger.info('Reconnecting in 5 seconds...');
         setTimeout(() => {
           startWhatsApp(config).catch((err) => {
-            console.error('Reconnection failed:', err);
+            logger.error(err, 'Reconnection failed');
           });
         }, 5000);
       } else {
-        console.error('[✗] Logged out. Please delete the sessions folder and restart.');
+        logger.error('Logged out. Please delete the sessions folder and restart.');
       }
     }
   });

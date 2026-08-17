@@ -1,4 +1,5 @@
 const config = require('./config');
+const logger = require('./utils/logger');
 const { startWhatsApp } = require('./whatsapp/connection');
 
 console.log('╔══════════════════════════════════╗');
@@ -12,14 +13,20 @@ console.log(`║ WhatsApp     : CONNECTING        ║`);
 console.log(`║ Security     : NOT LOADED        ║`);
 console.log('╚══════════════════════════════════╝');
 
-console.log('\n[✓] Configuration loaded');
-console.log(`    Bot name   : ${config.botName}`);
-console.log(`    Owner      : ${config.ownerName} (${config.ownerNumber})`);
-console.log(`    Prefix     : ${config.botPrefix}`);
-console.log(`    Environment: ${config.environment}`);
+logger.info('Configuration loaded');
+logger.info(
+  {
+    botName: config.botName,
+    owner: config.ownerName,
+    prefix: config.botPrefix,
+    environment: config.environment
+  },
+  'Bot configuration'
+);
 
-console.log('\n[✓] Starting WhatsApp connection...');
+logger.info('Starting WhatsApp connection...');
+
 startWhatsApp(config).catch((err) => {
-  console.error('Failed to start WhatsApp connection:', err);
+  logger.fatal(err, 'Failed to start WhatsApp connection');
   process.exit(1);
 });
