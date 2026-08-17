@@ -1,3 +1,5 @@
+const { commandBox, styledLine } = require('../../utils/format');
+
 module.exports = {
   name: 'info',
   aliases: ['botinfo', 'about'],
@@ -7,15 +9,16 @@ module.exports = {
   permissions: ['USER'],
   cooldown: 3,
   execute: async (ctx) => {
-    const { botName, ownerName, environment } = ctx.config;
+    const lines = [
+      styledLine('Bot', ctx.config.botName),
+      styledLine('Owner', ctx.config.ownerName),
+      styledLine('Mode', ctx.config.environment.toUpperCase()),
+      styledLine('Prefix', ctx.config.botPrefix),
+      styledLine('Engine', 'NODE.JS'),
+      styledLine('Status', 'ONLINE')
+    ].join('\n');
     await ctx.sock.sendMessage(ctx.normalized.remoteJid, {
-      text: `╭━━━〔 ⚔️ ${botName} 〕━━━╮\n` +
-            `┃  SHXWN-KAGE SYSTEM\n` +
-            `┃  Status: ONLINE\n` +
-            `┃  Mode: ${environment.toUpperCase()}\n` +
-            `┃  Prefix: ${ctx.config.botPrefix}\n` +
-            `┃  Owner: ${ownerName}\n` +
-            `╰━━━━━━━━━━━━━━━━━━━━━╯`
+      text: commandBox('INFO', lines)
     });
   }
 };

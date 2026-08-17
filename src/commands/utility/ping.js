@@ -1,3 +1,5 @@
+const { commandBox, styledLine } = require('../../utils/format');
+
 module.exports = {
   name: 'ping',
   aliases: ['p'],
@@ -8,12 +10,18 @@ module.exports = {
   cooldown: 3,
   execute: async (ctx) => {
     const start = Date.now();
-    const sent = await ctx.sock.sendMessage(ctx.normalized.remoteJid, {
-      text: '🏓 Pong!'
+    await ctx.sock.sendMessage(ctx.normalized.remoteJid, {
+      text: commandBox('PING', [
+        styledLine('Status', 'ONLINE'),
+        styledLine('Latency', '...')
+      ].join('\n'))
     });
     const latency = Date.now() - start;
     await ctx.sock.sendMessage(ctx.normalized.remoteJid, {
-      text: `⚡ Latency: ${latency}ms`
+      text: commandBox('PING', [
+        styledLine('Status', 'ONLINE'),
+        styledLine('Latency', `${latency}ms`)
+      ].join('\n'))
     });
   }
 };

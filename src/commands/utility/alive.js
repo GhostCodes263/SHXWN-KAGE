@@ -1,3 +1,5 @@
+const { commandBox, styledLine } = require('../../utils/format');
+
 module.exports = {
   name: 'alive',
   aliases: ['online', 'status'],
@@ -7,14 +9,14 @@ module.exports = {
   permissions: ['USER'],
   cooldown: 3,
   execute: async (ctx) => {
+    const lines = [
+      styledLine('Status', 'ONLINE'),
+      styledLine('Mode', ctx.config.environment.toUpperCase()),
+      styledLine('Prefix', ctx.config.botPrefix),
+      styledLine('Threat', 'LOW')
+    ].join('\n');
     await ctx.sock.sendMessage(ctx.normalized.remoteJid, {
-      text: '╔══════════════════════════════════╗\n' +
-            '║        SHXWN-KAGE CORE           ║\n' +
-            '╠══════════════════════════════════╣\n' +
-            '║ Status       : ONLINE            ║\n' +
-            '║ Mode         : DEVELOPMENT       ║\n' +
-            '║ Prefix       : ' + ctx.config.botPrefix + '                ║\n' +
-            '╚══════════════════════════════════╝'
+      text: commandBox('SYSTEM STATUS', lines)
     });
   }
 };
