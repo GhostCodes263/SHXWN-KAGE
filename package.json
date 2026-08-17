@@ -14,5 +14,8 @@
     "node": ">=18.0.0"
   },
   "author": "SHXWN",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
 }
