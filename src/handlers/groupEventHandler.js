@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { getRecord, setPendingGroup } = require('../verification/verificationStore');
 const { getGroupSettings, updateGroupSettings, resetJoinCount } = require('../utils/raidStore');
 const { commandBox, styledLine } = require('../utils/format');
 
@@ -9,66 +10,77 @@ async function handleGroupParticipantsUpdate(sock, update) {
   const { id: groupJid, participants } = update;
   if (!groupJid || !participants || !participants.length) return;
 
-  const joins = participants.filter((p) => p.action === 'add');
+  const joins = participants.filter(p => p.action === 'add');
   if (!joins.length) return;
 
-  const settings = getGroupSettings(groupJid);
-  if (!settings.enabled) return;
+  // Anti-raid check
+  const raidSettings = getGroupSettings(groupJid);
+  if (raidSettings.enabled) {
+    const now = Date.now();
+    const windowMs = 60 * 1000;
+    if (now - raidSettings.lastJoinTime > windowMs) {
+      raidSettings.joinCount = 0;
+    }
+    raidSettings.joinCount += joins.length;
+    raidSettings.lastJoinTime = now;
+    updateGroupSettings(groupJid, raidSettings);
+    logger.info(`Raid detection: ${raidSettings.joinCount} joins in 1 min in ${groupJid}`);
 
-  const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute
-
-  // Reset if last join was longer than 1 minute ago
-  if (now - settings.lastJoinTime > windowMs) {
-    settings.joinCount = 0;
-  }
-
-  settings.joinCount += joins.length;
-  settings.lastJoinTime = now;
-  updateGroupSettings(groupJid, settings);
-
-  logger.info(`Raid detection: ${settings.joinCount} joins in 1 min in ${groupJid}`);
-
-  if (settings.joinCount >= settings.threshold) {
-    const action = settings.action || 'lockdown';
-    logger.warn(`Anti-raid triggered in ${groupJid}: action=${action}`);
-
-    if (action === 'lockdown') {
-      try {
+    if (raidSettings.joinCount >= raidSettings.threshold) {
+      const action = raidSettings.action || 'lockdown';
+      logger.warn(`Anti-raid triggered in ${groupJid}: action=${action}`);
+      if (action === 'lockdown') {
         await sock.groupSettingUpdate(groupJid, 'announcement');
         updateGroupSettings(groupJid, { locked: true });
-        const lines = [
-          styledLine('Mode', 'LOCKDOWN ACTIVATED'),
-          styledLine('Reason', `${settings.joinCount} joins in 1 min`),
-          styledLine('Threshold', String(settings.threshold))
-        ].join('\n');
         await sock.sendMessage(groupJid, {
-          text: commandBox('ANTI-RAID', lines),
+          text: commandBox('ANTI-RAID', [
+            styledLine('Mode', 'LOCKDOWN ACTIVATED'),
+            styledLine('Reason', `${raidSettings.joinCount} joins in 1 min`)
+          ].join('\n')),
           linkPreview: false
         });
-      } catch (err) {
-        logger.error(err, 'Failed to activate lockdown');
-      }
-    } else if (action === 'kick' || action === 'ban') {
-      // Kick/ban recent joiners
-      try {
-        const joiners = joins.map((p) => p.id);
+      } else if (action === 'kick' || action === 'ban') {
+        const joiners = joins.map(p => p.id);
         await sock.groupParticipantsUpdate(groupJid, joiners, 'remove');
-        const lines = [
-          styledLine('Action', action.toUpperCase()),
-          styledLine('Members Removed', String(joiners.length)),
-          styledLine('Reason', `Raid detected: ${settings.joinCount} joins/min`)
-        ].join('\n');
         await sock.sendMessage(groupJid, {
-          text: commandBox('ANTI-RAID', lines),
+          text: commandBox('ANTI-RAID', [
+            styledLine('Action', action.toUpperCase()),
+            styledLine('Members Removed', String(joiners.length))
+          ].join('\n')),
+          linkPreview: false
+        });
+      }
+      resetJoinCount(groupJid);
+    }
+  }
+
+  // Verification check
+  for (const joiner of joins) {
+    const userJid = joiner.id;
+    const record = getRecord(userJid);
+    if (!record || record.status !== 'APPROVED') {
+      // Set pending group for later verification
+      setPendingGroup(userJid, groupJid);
+      // Kick
+      try {
+        await sock.groupParticipantsUpdate(groupJid, [userJid], 'remove');
+        logger.info(`Kicked unverified user ${userJid} from ${groupJid}`);
+      } catch (err) {
+        logger.warn(`Failed to kick unverified user: ${err.message}`);
+      }
+      // Send private message
+      try {
+        await sock.sendMessage(userJid, {
+          text: commandBox('NOT VERIFIED', [
+            styledLine('Status', 'ACCESS DENIED'),
+            styledLine('Action', 'Please type .joingroup to verify and rejoin.')
+          ].join('\n')),
           linkPreview: false
         });
       } catch (err) {
-        logger.error(err, `Failed to ${action} joiners`);
+        logger.warn(`Could not DM unverified user: ${err.message}`);
       }
     }
-
-    resetJoinCount(groupJid);
   }
 }
 

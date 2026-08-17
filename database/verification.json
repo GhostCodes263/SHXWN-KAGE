@@ -1,0 +1,19 @@
+{
+  "sessions": {},
+  "records": {
+    "263718391476@s.whatsapp.net": {
+      "userJid": "263718391476@s.whatsapp.net",
+      "name": "Johnny Sohwe",
+      "age": "22",
+      "gender": "Male",
+      "location": "Harare",
+      "status": "PENDING_REVIEW",
+      "submittedAt": 1786969117158,
+      "reviewedAt": null
+    }
+  },
+  "settings": {
+    "enabled": true,
+    "adminReview": true
+  }
+}
