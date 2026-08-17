@@ -2,7 +2,6 @@ const logger = require('../utils/logger');
 const { normalizeMessage } = require('../utils/messageNormalizer');
 const { handleCommand, loadCommands } = require('./commandHandler');
 
-// Load commands once on startup
 let commandsLoaded = false;
 
 async function handleMessage(sock, msg) {
@@ -10,6 +9,8 @@ async function handleMessage(sock, msg) {
     loadCommands();
     commandsLoaded = true;
   }
+
+  console.log('RAW MESSAGE KEY:', JSON.stringify(msg.key, null, 2));
 
   const context = normalizeMessage(msg, sock);
 
@@ -25,7 +26,6 @@ async function handleMessage(sock, msg) {
     'Incoming message'
   );
 
-  // Command handling
   await handleCommand(sock, context);
 }
 

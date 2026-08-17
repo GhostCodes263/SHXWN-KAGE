@@ -1,19 +1,43 @@
 const { resolveLidToJid } = require('./lidResolver');
 
+function resolveJid(jid) {
+  if (!jid) return undefined;
+  return resolveLidToJid(jid);
+}
+
 /**
  * Normalizes a raw Baileys message into a clean context object.
  */
 function normalizeMessage(msg, sock) {
-  const { key, message, pushName, messageTimestamp, remoteJid: rawRemoteJid } = msg;
+  const { key, message, pushName, messageTimestamp } = msg;
+  const {
+    remoteJid: rawRemoteJid,
+    remoteJidAlt,
+    participant,
+    participantAlt,
+    addressingMode
+  } = key;
 
-  // Resolve possible LID JIDs
-  const rawSender = key.participant || key.remoteJid;
+  // Determine chat JID (remoteJid)
+  let remoteJid;
+  if (rawRemoteJid) {
+    remoteJid = resolveJid(rawRemoteJid);
+  } else if (remoteJidAlt) {
+    remoteJid = remoteJidAlt;
+  }
 
-  let sender = resolveLidToJid(rawSender);
+  // Determine sender JID
+  let rawSender;
+  if (participant && participant !== '') {
+    rawSender = participant;
+  } else if (participantAlt) {
+    rawSender = participantAlt;
+  } else {
+    rawSender = rawRemoteJid || remoteJid || '';
+  }
+  let sender = resolveJid(rawSender);
 
-  // For private messages, remoteJid is usually the same as sender.
-  // If remoteJid is undefined, fall back to sender.
-  let remoteJid = resolveLidToJid(rawRemoteJid);
+  // Fallback if remoteJid is undefined
   if (!remoteJid) {
     remoteJid = sender;
   }
@@ -21,6 +45,7 @@ function normalizeMessage(msg, sock) {
   const isGroup = remoteJid?.endsWith('@g.us');
   const messageId = key.id;
 
+  // Extract text
   let text = '';
   if (message) {
     if (message.conversation) text = message.conversation;
@@ -36,6 +61,7 @@ function normalizeMessage(msg, sock) {
     }
   }
 
+  // Determine media
   let mediaType = null;
   let mediaMessage = null;
   if (message) {
