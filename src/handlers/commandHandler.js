@@ -50,6 +50,20 @@ function loadCommands() {
   logger.info(`Commands loaded: ${commands.size}`);
 }
 
+function getCommands() {
+  return commands;
+}
+
+function getCommandsByCategory() {
+  const grouped = new Map();
+  for (const command of commands.values()) {
+    const cat = command.category || 'misc';
+    if (!grouped.has(cat)) grouped.set(cat, []);
+    grouped.get(cat).push(command.name);
+  }
+  return grouped;
+}
+
 async function handleCommand(sock, normalizedMessage) {
   const { text } = normalizedMessage;
 
@@ -67,13 +81,12 @@ async function handleCommand(sock, normalizedMessage) {
   }
 
   if (!commands.has(targetName)) {
-    return; // Unknown command
+    return;
   }
 
   const command = commands.get(targetName);
   const userId = normalizedMessage.sender;
 
-  // Permission check
   const permission = getPermissionLevel({ normalized: normalizedMessage });
   if (!hasPermission(permission.level, command.permissions)) {
     const denial = commandBox('ACCESS DENIED', [
@@ -86,7 +99,6 @@ async function handleCommand(sock, normalizedMessage) {
     return;
   }
 
-  // Cooldown check
   const cooldownKey = `${userId}:${command.name}`;
   const now = Date.now();
   if (cooldowns.has(cooldownKey)) {
@@ -131,5 +143,7 @@ async function handleCommand(sock, normalizedMessage) {
 
 module.exports = {
   loadCommands,
-  handleCommand
+  handleCommand,
+  getCommands,
+  getCommandsByCategory
 };
