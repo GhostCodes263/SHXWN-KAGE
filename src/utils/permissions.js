@@ -11,22 +11,47 @@ const PERMISSIONS = {
   BANNED: 0
 };
 
-function getPermissionLevel(context) {
-  const sender = context.normalized.sender;
+/**
+ * Determines the permission level of a message sender.
+ * @param {Object} ctx - Contains sock and normalized message.
+ */
+async function getPermissionLevel(ctx) {
+  const sender = ctx.normalized.sender;
   const ownerNumber = config.ownerNumber;
+  const sock = ctx.sock;
 
-  // Normalize sender to digits only for comparison
+  // Normalize sender to digits only
   const senderNumber = sender
     ? sender.replace(/@.*$/, '').replace(/[^0-9]/g, '')
     : '';
 
+  // Owner check
   if (senderNumber && senderNumber === ownerNumber) {
-    return { level: 'OWNER', priority: PERMISSIONS.OWNER, isOwner: true };
+    return { level: 'OWNER', priority: PERMISSIONS.OWNER, isOwner: true, isAdmin: true };
   }
 
-  // Future: group admin detection, VIP, etc.
+  let isAdmin = false;
 
-  return { level: 'USER', priority: PERMISSIONS.USER, isOwner: false };
+  // Group admin check
+  if (ctx.normalized.isGroup) {
+    try {
+      const groupJid = ctx.normalized.remoteJid;
+      const metadata = await sock.groupMetadata(groupJid);
+      const participants = metadata.participants || [];
+      const participant = participants.find((p) => p.id === sender);
+      if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
+        isAdmin = true;
+      }
+    } catch (err) {
+      // Ignore errors, assume not admin
+    }
+  }
+
+  if (isAdmin) {
+    return { level: 'ADMIN', priority: PERMISSIONS.ADMIN, isOwner: false, isAdmin: true };
+  }
+
+  return { level: 'USER', priority: PERMISSIONS.USER, isOwner: false, isAdmin: false };
 }
 
 function hasPermission(userLevel, requiredPermissions) {

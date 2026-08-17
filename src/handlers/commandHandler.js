@@ -33,6 +33,7 @@ function loadCommands() {
         command.aliases = command.aliases || [];
         command.permissions = command.permissions || ['USER'];
         command.cooldown = typeof command.cooldown === 'number' ? command.cooldown : 3;
+        command.groupOnly = typeof command.groupOnly === 'boolean' ? command.groupOnly : false;
 
         commands.set(command.name.toLowerCase(), command);
 
@@ -87,7 +88,18 @@ async function handleCommand(sock, normalizedMessage) {
   const command = commands.get(targetName);
   const userId = normalizedMessage.sender;
 
-  const permission = getPermissionLevel({ normalized: normalizedMessage });
+  // Group-only enforcement
+  if (command.groupOnly && !normalizedMessage.isGroup) {
+    const groupOnlyMsg = commandBox('GROUP ONLY', [
+      styledLine('Command', command.name),
+      styledLine('Reason', 'This command works in groups only.')
+    ].join('\n'));
+    await sock.sendMessage(normalizedMessage.remoteJid, { text: groupOnlyMsg });
+    logger.warn(`Blocked group-only command ${command.name} in private chat`);
+    return;
+  }
+
+  const permission = await getPermissionLevel({ sock, normalized: normalizedMessage });
   if (!hasPermission(permission.level, command.permissions)) {
     const denial = commandBox('ACCESS DENIED', [
       styledLine('Command', command.name),

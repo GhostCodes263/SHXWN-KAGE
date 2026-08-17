@@ -10,8 +10,6 @@ async function handleMessage(sock, msg) {
     commandsLoaded = true;
   }
 
-  console.log('RAW MESSAGE KEY:', JSON.stringify(msg.key, null, 2));
-
   const context = normalizeMessage(msg, sock);
 
   logger.info(
