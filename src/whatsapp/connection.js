@@ -11,8 +11,8 @@ const {
 } = require('@whiskeysockets/baileys');
 
 const logger = require('../utils/logger');
+const { handleMessage } = require('../handlers/messageHandler');
 
-// Baileys internal logger — keep it quiet
 const baileysLogger = pino({ level: 'warn' });
 
 async function startWhatsApp(config) {
@@ -72,6 +72,19 @@ async function startWhatsApp(config) {
         }, 5000);
       } else {
         logger.error('Logged out. Please delete the sessions folder and restart.');
+      }
+    }
+  });
+
+  // Listen for new messages
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return;
+
+    for (const msg of messages) {
+      try {
+        await handleMessage(sock, msg);
+      } catch (err) {
+        logger.error(err, 'Error handling message');
       }
     }
   });
