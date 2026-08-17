@@ -28,7 +28,19 @@ function ensureFile() {
 function readData() {
   ensureFile();
   try {
-    return JSON.parse(fs.readFileSync(VERIFICATION_FILE, 'utf8'));
+    const raw = fs.readFileSync(VERIFICATION_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    // Merge with defaults to ensure all keys exist
+    const defaults = defaultData();
+    return {
+      ...defaults,
+      ...parsed,
+      settings: { ...defaults.settings, ...(parsed.settings || {}) },
+      pendingGroups: parsed.pendingGroups || {},
+      verificationRequests: parsed.verificationRequests || {},
+      sessions: parsed.sessions || {},
+      records: parsed.records || {}
+    };
   } catch (err) {
     logger.error(err, 'Failed to read verification file');
     return defaultData();
@@ -67,7 +79,7 @@ function setRecord(userJid, record) {
   writeData(data);
 }
 
-// Pending Groups (user kicked, awaiting verification to join this group)
+// Pending Groups
 function setPendingGroup(userJid, groupJid) {
   const data = readData();
   data.pendingGroups[userJid] = groupJid;
@@ -83,7 +95,7 @@ function clearPendingGroup(userJid) {
   writeData(data);
 }
 
-// Verification Requests (sent to admins)
+// Verification Requests
 function getRequest(requestId) {
   const data = readData();
   return data.verificationRequests[requestId];

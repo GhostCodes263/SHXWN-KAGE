@@ -4,7 +4,7 @@
     "threshold": 2,
     "action": "lockdown",
     "locked": false,
-    "joinCount": 0,
-    "lastJoinTime": 0
+    "joinCount": 1,
+    "lastJoinTime": 1786970336697
   }
 }

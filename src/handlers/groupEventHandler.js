@@ -7,11 +7,18 @@ const { commandBox, styledLine } = require('../utils/format');
  * Handles group participant updates (join/leave).
  */
 async function handleGroupParticipantsUpdate(sock, update) {
-  const { id: groupJid, participants } = update;
-  if (!groupJid || !participants || !participants.length) return;
+  console.log('GROUP EVENT:', JSON.stringify(update, null, 2));
 
-  const joins = participants.filter(p => p.action === 'add');
-  if (!joins.length) return;
+  const groupJid = update.id;
+  const action = update.action;
+  const participants = update.participants || [];
+
+  if (!groupJid || !participants.length) return;
+
+  // Only care about adds
+  if (action !== 'add') return;
+
+  const joins = participants;
 
   // Anti-raid check
   const raidSettings = getGroupSettings(groupJid);
@@ -27,9 +34,9 @@ async function handleGroupParticipantsUpdate(sock, update) {
     logger.info(`Raid detection: ${raidSettings.joinCount} joins in 1 min in ${groupJid}`);
 
     if (raidSettings.joinCount >= raidSettings.threshold) {
-      const action = raidSettings.action || 'lockdown';
-      logger.warn(`Anti-raid triggered in ${groupJid}: action=${action}`);
-      if (action === 'lockdown') {
+      const raidAction = raidSettings.action || 'lockdown';
+      logger.warn(`Anti-raid triggered in ${groupJid}: action=${raidAction}`);
+      if (raidAction === 'lockdown') {
         await sock.groupSettingUpdate(groupJid, 'announcement');
         updateGroupSettings(groupJid, { locked: true });
         await sock.sendMessage(groupJid, {
@@ -39,12 +46,12 @@ async function handleGroupParticipantsUpdate(sock, update) {
           ].join('\n')),
           linkPreview: false
         });
-      } else if (action === 'kick' || action === 'ban') {
-        const joiners = joins.map(p => p.id);
+      } else if (raidAction === 'kick' || raidAction === 'ban') {
+        const joiners = joins.map(p => p.phoneNumber || p.id);
         await sock.groupParticipantsUpdate(groupJid, joiners, 'remove');
         await sock.sendMessage(groupJid, {
           text: commandBox('ANTI-RAID', [
-            styledLine('Action', action.toUpperCase()),
+            styledLine('Action', raidAction.toUpperCase()),
             styledLine('Members Removed', String(joiners.length))
           ].join('\n')),
           linkPreview: false
@@ -56,19 +63,17 @@ async function handleGroupParticipantsUpdate(sock, update) {
 
   // Verification check
   for (const joiner of joins) {
-    const userJid = joiner.id;
+    // Use phoneNumber (real JID) if available, else id (LID)
+    const userJid = joiner.phoneNumber || joiner.id;
     const record = getRecord(userJid);
     if (!record || record.status !== 'APPROVED') {
-      // Set pending group for later verification
       setPendingGroup(userJid, groupJid);
-      // Kick
       try {
         await sock.groupParticipantsUpdate(groupJid, [userJid], 'remove');
         logger.info(`Kicked unverified user ${userJid} from ${groupJid}`);
       } catch (err) {
         logger.warn(`Failed to kick unverified user: ${err.message}`);
       }
-      // Send private message
       try {
         await sock.sendMessage(userJid, {
           text: commandBox('NOT VERIFIED', [
