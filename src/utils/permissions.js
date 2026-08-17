@@ -1,4 +1,5 @@
 const config = require('../config');
+const { resolveLidToJid } = require('./lidResolver');
 
 const PERMISSIONS = {
   OWNER: 7,
@@ -12,7 +13,7 @@ const PERMISSIONS = {
 };
 
 /**
- * Determines the permission level of a message sender.
+ * Determines permission level for a message sender.
  * @param {Object} ctx - Contains sock and normalized message.
  */
 async function getPermissionLevel(ctx) {
@@ -38,12 +39,26 @@ async function getPermissionLevel(ctx) {
       const groupJid = ctx.normalized.remoteJid;
       const metadata = await sock.groupMetadata(groupJid);
       const participants = metadata.participants || [];
-      const participant = participants.find((p) => p.id === sender);
-      if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-        isAdmin = true;
+
+      for (const p of participants) {
+        // Candidate IDs for comparison
+        const candidateJids = [
+          p.id,
+          p.participantAlt,
+          // resolve LID to JID if p.id is LID
+          resolveLidToJid(p.id)
+        ].filter(Boolean);
+
+        const isMatch = candidateJids.some((jid) => jid === sender);
+
+        if (isMatch && (p.admin === 'admin' || p.admin === 'superadmin')) {
+          isAdmin = true;
+          break;
+        }
       }
     } catch (err) {
-      // Ignore errors, assume not admin
+      // Log error but continue
+      console.error('Failed to get group metadata for permission check:', err.message);
     }
   }
 
