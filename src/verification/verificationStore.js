@@ -28,18 +28,12 @@ function ensureFile() {
 function readData() {
   ensureFile();
   try {
-    const raw = fs.readFileSync(VERIFICATION_FILE, 'utf8');
-    const parsed = JSON.parse(raw);
+    const data = JSON.parse(fs.readFileSync(VERIFICATION_FILE, 'utf8'));
     // Merge with defaults to ensure all keys exist
-    const defaults = defaultData();
     return {
-      ...defaults,
-      ...parsed,
-      settings: { ...defaults.settings, ...(parsed.settings || {}) },
-      pendingGroups: parsed.pendingGroups || {},
-      verificationRequests: parsed.verificationRequests || {},
-      sessions: parsed.sessions || {},
-      records: parsed.records || {}
+      ...defaultData(),
+      ...data,
+      settings: { ...defaultData().settings, ...(data.settings || {}) }
     };
   } catch (err) {
     logger.error(err, 'Failed to read verification file');
@@ -82,33 +76,39 @@ function setRecord(userJid, record) {
 // Pending Groups
 function setPendingGroup(userJid, groupJid) {
   const data = readData();
+  if (!data.pendingGroups) data.pendingGroups = {};
   data.pendingGroups[userJid] = groupJid;
   writeData(data);
 }
 function getPendingGroup(userJid) {
   const data = readData();
-  return data.pendingGroups[userJid];
+  return data.pendingGroups ? data.pendingGroups[userJid] : undefined;
 }
 function clearPendingGroup(userJid) {
   const data = readData();
-  delete data.pendingGroups[userJid];
-  writeData(data);
+  if (data.pendingGroups) {
+    delete data.pendingGroups[userJid];
+    writeData(data);
+  }
 }
 
 // Verification Requests
 function getRequest(requestId) {
   const data = readData();
-  return data.verificationRequests[requestId];
+  return data.verificationRequests ? data.verificationRequests[requestId] : undefined;
 }
 function setRequest(requestId, request) {
   const data = readData();
+  if (!data.verificationRequests) data.verificationRequests = {};
   data.verificationRequests[requestId] = request;
   writeData(data);
 }
 function deleteRequest(requestId) {
   const data = readData();
-  delete data.verificationRequests[requestId];
-  writeData(data);
+  if (data.verificationRequests) {
+    delete data.verificationRequests[requestId];
+    writeData(data);
+  }
 }
 function getAllRequests() {
   const data = readData();
